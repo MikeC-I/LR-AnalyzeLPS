@@ -1,7 +1,7 @@
 ﻿{
 	"config": {
         "logfile":"C:\\LogRhythm\\Scripts\\LR-AnalyzeLPS\\LR-AnalyzeLPS.log",
-        "loglevel":1,
+        "loglevel":2,
 		"DPs": [
             {
 			    "name": "dp-1a",
