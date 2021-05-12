@@ -6,7 +6,7 @@
             {
 			    "name": "dp-1a",
 			    "lps_path": "C:\\Program Files\\LogRhythm\\LogRhythm Mediator Server\\Logs\\lps_detail_snapshot.log",
-			    "output_file": "C:\\LogRhythm\\Scripts\\LR-AnalyzeLPS\\LPSAnalyzeTest_DP-1A_real.txt"
+			    "output_path": "C:\\LogRhythm\\Scripts\\LR-AnalyzeLPS\\"
 		    }
         ]
 	}

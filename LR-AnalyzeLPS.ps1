@@ -14,6 +14,10 @@
     You may be able to identify particular MPE rules that are causing performance impact by looking at the LPS-Regex-Total column. If the poor performing rules are custom rules, you may want to try to improve the regula expression.
     If the poor performing rules are system rules, you will need to determine if the logs being captured by this rule are confirming to the expected formatting.  It may be prudent to create a new MPE Policy for this log source type
     and disable some of the poor performing rules if they are not important logs. 
+.PARAMETER ExportCSV
+    [Switch] Use this to export the data as a raw CSV in addition to to formatted text file
+.PARAMETER AppendDate
+    [Switch] Use this to append the date to the filename
 .EXAMPLE
     LR-AnalyzeLPS.ps1
 .NOTES
@@ -23,8 +27,16 @@
             
     Change Log:
         2021/05/11 - Initial Commit of complete script for use in customer environments
+        2021/05/12 - Added ExportCSV and AppendDate functionality
 
 #>
+
+[CmdletBinding()]
+param(
+    [switch]$ExportCSV,
+    [switch]$AppendDate
+)
+
 
 $input_file = "C:\LogRhythm\Scripts\LR-AnalyzeLPS\lps_files.json"
 
@@ -70,7 +82,7 @@ Function Write-Log {
             if ($logfile_exists -eq 1) {
                 if ((Get-Item $logfile).length/1MB -ge 10) {   # THIS IS THE LOG ROTATION CODE --- UNTESTED!!!!!
                     $logfilename = ((Get-Item $logdetail).Name).ToString()
-                    $newfilename = "$($logfilename)"+ (Get-Date -Format "yyyymmddhhmmss").ToString()
+                    $newfilename = "$($logfilename)"+ (Get-Date -Format "yyyyMMddhhmmss").ToString()
                     Rename-Item -Path $logfile -NewName $newfilename
                     New-Item $logfile -ItemType File
                     $this_Date = Get-Date -Format "MM\/dd\/yyyy hh:mm:ss tt"
@@ -199,11 +211,21 @@ Function Get-WastedTime ($parsed_lps_data, $avgmps) {
     return $parsed_lps_data_new
 }
 
-Function Write-ParsedLPSData ($parsed_lps_data, $lps, $lps_weighted, $out_file, $dp_name, $dp_metadata) {
+Function Write-ParsedLPSData ($parsed_lps_data, $lps, $lps_weighted, $out_path, $dp_name, $dp_metadata) {
     Write-Log -loglevel 1 -logdetail "Outputting parsed data..."
 
     Try {    
-        Write-output "Data Processor: $($dp_name)" | Out-File -FilePath $out_file
+        if ($AppendDate.IsPresent) {
+            $dateString = (Get-Date -Format "yyyyMMdd").ToString()
+            $out_file = $out_path + "LR-AnalyzeLPS_" + $dp_name + "_" + $dateString + ".txt"
+            $out_file_csv = $out_path + "LR-AnalyzeLPS_" + $dp_name + "_" + $dateString + ".csv"
+        }
+        else {
+            $out_file = $out_path + "LR-AnalyzeLPS_" + $dp_name + ".txt"
+            $out_file_csv = $out_path + "LR-AnalyzeLPS_" + $dp_name + ".csv"
+        }
+
+        Write-output "Data Processor: $($dp_name)" | Out-File -FilePath $out_file 
         Write-Output "Mediator ID: $($dp_metadata.MediatorID)" | Out-File -FilePath $out_file -Append
         Write-Output "Mediator Version: $($dp_metadata.MediatorVersion)" | Out-File -FilePath $out_file -Append
         Write-Output "Collection Start Time: $($dp_metadata.CollectionStartTime)" | Out-File -FilePath $out_file -Append
@@ -211,6 +233,9 @@ Function Write-ParsedLPSData ($parsed_lps_data, $lps, $lps_weighted, $out_file, 
         Write-output "Average MPS: $($lps)" | Out-File -FilePath $out_file -Append
         Write-output "Weighted Average MPS: $($lps_weighted)" | Out-File -FilePath $out_file -Append
         $parsed_lps_data | Sort-Object -Property WastedTime -Descending | Format-Table -Property * -AutoSize -Wrap | Out-File -FilePath $out_file -Append
+        if ($ExportCSV.IsPresent) {
+            $parsed_lps_data | Export-Csv -Path $out_file_csv -NoTypeInformation -Force
+        }            
         Write-Log -loglevel 1 -logdetail "Output complete."
     }
     Catch {
@@ -232,7 +257,7 @@ Function Process-LPS ($dp_config) {
     $parsed_data_2 = Get-WastedTime $parsed_data $dp_lps
     $dp_metadata = Get-Metadata $data
     Write-Log -loglevel 2 -logdetail "Writing output to $($dp_config.Output_File)"
-    Write-ParsedLPSData $parsed_data_2 $dp_lps_nonweighted $dp_lps $dp_config.Output_File $dp_config.name $dp_metadata
+    Write-ParsedLPSData $parsed_data_2 $dp_lps_nonweighted $dp_lps $dp_config.Output_Path $dp_config.name $dp_metadata
 }
 
 ###MAIN###
