@@ -25,9 +25,13 @@ and disable some of the poor performing rules if they are not important logs.
 ## Usage
 
 After editing the lps_files.json, you can run the script with two optional parameters:
+
 -ExportCSV
+    
     Use this to export the data as a raw CSV in addition to to formatted text file
+
 -AppendDate
+    
     Use this to append the date to the filename
 
 Once the script is a run, a file will be output to the folder specified in the "output_path" variable for each DP in the lps_files.json config file.
