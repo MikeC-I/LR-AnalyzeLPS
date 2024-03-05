@@ -46,8 +46,8 @@ $regex_3 = "Total Compares\:\s+(?<compares>.*)"
 $regex_4 = "LPS\-Policy\-Total\:\s+(?<lps>.*)"
 $regex_5 = "Mediator ID\s+(?<mediatorid>\d+)"
 $regex_6 = "Mediator Version\s+(?<mediatorversion>[\d\.]+)"
-$regex_7 = "Stat Collection Start\s+(?<start>\d{2}\-\d{2}\-\d{4}\s+\d{2}\:\d{2}\s+\w{2})"
-$regex_8 = "Stat Collection End\s+(?<stop>\d{2}\-\d{2}\-\d{4}\s+\d{2}\:\d{2}\s+\w{2})"
+$regex_7 = "Stat Collection Start\s+(?<start>\d{2}[\-/]\d{2}[\-/]\d{4}\s+\d{2}\:\d{2}\s+\w{2})"
+$regex_8 = "Stat Collection End\s+(?<stop>\d{2}[\-/]\d{2}[\-/]\d{4}\s+\d{2}\:\d{2}\s+\w{2})"
 
 Try {
     $dps = Get-content $input_file -Raw | ConvertFrom-Json
@@ -66,10 +66,10 @@ Function Write-Log {
     # Currently implemented 4 logging levels.  1 = DEBUG / VERBOSE, 2 = INFO, 3 = ERROR / WARNING, 4 = CRITICAL
     # Must use the variable $globalloglevel to define what logs will be written.  1 = All logs, 2 = Info and above, 3 = Warning and above, 4 = Only critical.  If no $globalloglevel is defined, defaults to 2
     # Must use the variable $logfile to define the filename (full path or relative path) of the log file to be written to
-               
+    # Auto-rotate feature written but un-tested
+           
     [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $true)] [string]$logdetail,
+    Param([Parameter(Mandatory = $true)] [string]$logdetail,
         [Parameter(Mandatory = $false)] [int32]$loglevel = 2
     )
     if (($globalloglevel -ne 1) -and ($globalloglevel -ne 2) -and ($globalloglevel -ne 3) -and ($globalloglevel -ne 4)) {
@@ -80,9 +80,9 @@ Function Write-Log {
         try {
             $logfile_exists = Test-Path -Path $logfile
             if ($logfile_exists -eq 1) {
-                if ((Get-Item $logfile).length/1MB -ge 10) {
-                    $logfilename = [io.path]::GetFileNameWithoutExtension($logfile)
-                    $newfilename = "$($logfilename)"+ (Get-Date -Format "yyyyMMddhhmmss").ToString() + ".log"
+                if ((Get-Item $logfile).length/1MB -ge 10) {   # THIS IS THE LOG ROTATION CODE --- UNTESTED!!!!!
+                    $logfilename = ((Get-Item $logdetail).Name).ToString()
+                    $newfilename = "$($logfilename)"+ (Get-Date -Format "yyyyMMddhhmmss").ToString()
                     Rename-Item -Path $logfile -NewName $newfilename
                     New-Item $logfile -ItemType File
                     $this_Date = Get-Date -Format "MM\/dd\/yyyy hh:mm:ss tt"
@@ -174,10 +174,10 @@ Function Get-DPLPS ($parsed_lps_data) {
         $dp_total_compares = ($parsed_lps_data | Measure-object -Sum TotalCompares).Sum
         $lps_total = 0
         $parsed_lps_data | ForEach-Object {
-            $mpe_product = ( [Int]$_.TotalCompares * [Single]$_.LogsPersecond )
+            $mpe_product = ( [Int64]$_.TotalCompares * [Single]$_.LogsPersecond )
             $lps_total += $mpe_product
         }
-        $dp_weighted_mps_avg = ( [Single]$lps_total / [Int]$dp_total_compares )
+        $dp_weighted_mps_avg = ( [Single]$lps_total / [Int64]$dp_total_compares )
         Write-Log -loglevel 1 -logdetail "Calculation complete."
     }
     Catch {
@@ -199,7 +199,7 @@ Function Get-WastedTime ($parsed_lps_data, $avgmps) {
             $this_match | Add-Member -MemberType NoteProperty -Name MPEPolicy -Value $_.MPEPolicy
             $this_match | Add-Member -MemberType NoteProperty -Name TotalCompares -Value $_.TotalCompares
             $this_match | Add-Member -MemberType NoteProperty -Name LogsPerSecond -Value $_.LogsPerSecond
-            [Single]$wtime = ( ((1 / [Single]$_.LogsPerSecond) - (1 / $avgmps)) * [Int]$_.TotalCompares )
+            [Single]$wtime = ( ((1 / [Single]$_.LogsPerSecond) - (1 / $avgmps)) * [Int64]$_.TotalCompares )
             $this_match | Add-Member -MemberType NoteProperty -Name WastedTime -Value $wtime
             $parsed_lps_data_new += $this_match
         }
